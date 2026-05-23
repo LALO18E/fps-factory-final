@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FPS Factory — Admin de Productos</title>
+  <link rel="icon" href="favicon.ico">
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2333;
+      --border:    #30363d;
+      --accent:    #00d2ff;
+      --accent2:   #0094b3;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --danger:    #f85149;
+      --success:   #3fb950;
+      --warning:   #d29922;
+      --radius:    10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ── Header ── */
+    .admin-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .admin-logo { font-size: 1.1rem; font-weight: 700; letter-spacing: .5px; }
+    .admin-logo span { color: var(--accent); }
+    .admin-header-right { display: flex; align-items: center; gap: 12px; }
+    .pill-status { font-size: .78rem; color: var(--muted); }
+    .btn-back {
+      text-decoration: none; color: var(--text); font-size: .82rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: 6px; transition: border-color .2s;
+    }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ── */
+    .admin-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+    .admin-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .admin-top h1 { font-size: 1.3rem; }
+
+    /* ── Botones ── */
+    .btn {
+      padding: 8px 18px; border-radius: 7px; border: none;
+      cursor: pointer; font-size: .88rem; font-weight: 600;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { opacity: .88; }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover { opacity: .85; }
+    .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); }
+    .btn-sm { padding: 5px 12px; font-size: .78rem; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Tabla de productos ── */
+    .products-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    thead { background: var(--surface2); }
+    th { padding: 12px 14px; text-align: left; color: var(--muted); font-weight: 600; white-space: nowrap; }
+    td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: var(--surface2); }
+    .td-img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; background: var(--surface2); }
+    .td-name { font-weight: 600; max-width: 180px; }
+    .td-name small { display: block; color: var(--muted); font-weight: 400; font-size: .76rem; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .badge-yes { background: rgba(63,185,80,.15); color: var(--success); }
+    .badge-no  { background: rgba(139,148,158,.1);  color: var(--muted); }
+    .td-actions { display: flex; gap: 6px; }
+    .empty-row td { text-align: center; padding: 40px; color: var(--muted); }
+
+    /* ── Formulario (modal) ── */
+    .form-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .form-overlay.open { display: flex; }
+    .form-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+    }
+    .form-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: .78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+    input, select, textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: .88rem;
+      width: 100%;
+      outline: none;
+      transition: border-color .2s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    .img-preview-wrap { margin-top: 6px; }
+    .img-preview {
+      width: 100%; height: 140px; object-fit: cover;
+      border-radius: 7px; background: var(--surface2);
+      border: 1px solid var(--border);
+      display: block;
+    }
+    .specs-hint { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .form-error { color: var(--danger); font-size: .8rem; margin-top: 8px; }
+
+    /* ── Toast ── */
+    #admin-toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 18px; font-size: .85rem;
+      z-index: 999; opacity: 0; transform: translateY(8px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+    }
+    #admin-toast.show { opacity: 1; transform: translateY(0); }
+    #admin-toast.toast-success { border-color: var(--success); color: var(--success); }
+    #admin-toast.toast-error   { border-color: var(--danger);  color: var(--danger); }
+
+    /* ── Seed section ── */
+    .seed-section {
+      margin-top: 28px;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .seed-section h3 { font-size: .95rem; margin-bottom: 6px; }
+    .seed-section p  { font-size: .82rem; color: var(--muted); margin-bottom: 12px; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 48px; color: var(--muted); }
+
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="admin-header">
+  <div class="admin-logo"><span>FPS</span> FACTORY · Admin</div>
+  <div class="admin-header-right">
+    <span class="pill-status" id="firebase-status">⚫ Sin Firebase</span>
+    <a href="index.html" class="btn-back">← Volver a la tienda</a>
+  </div>
+</header>
+
+<!-- Panel principal -->
+<main class="admin-wrap">
+  <div class="admin-top">
+    <h1>Gestión de Productos</h1>
+    <button class="btn btn-primary" id="btn-new-product">+ Nuevo Producto</button>
+  </div>
+
+  <div class="products-table-wrap">
+    <table id="products-table" aria-label="Lista de productos">
+      <thead>
+        <tr>
+          <th>Foto</th>
+          <th>Nombre / Marca</th>
+          <th>Categoría</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Destacado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="products-tbody">
+        <tr class="empty-row"><td colspan="7">Cargando productos…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Sección para cargar el mock a Firestore -->
+  <div class="seed-section" id="seed-section" style="display:none">
+    <h3>🌱 Poblar Firestore con productos de ejemplo</h3>
+    <p>Firestore está vacío. Puedes cargar los 6 productos de ejemplo para empezar. Solo se hace una vez.</p>
+    <button class="btn btn-ghost" id="btn-seed">Cargar productos de ejemplo a Firestore</button>
+  </div>
+</main>
+
+<!-- Modal: Formulario de producto -->
+<div class="form-overlay" id="product-form-overlay" role="dialog" aria-modal="true" aria-label="Formulario de producto">
+  <div class="form-box">
+    <h2 class="form-title" id="form-title">Nuevo Producto</h2>
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label for="f-nombre">Nombre *</label>
+        <input type="text" id="f-nombre" placeholder="AMD Ryzen 9 9950X">
+      </div>
+
+      <div class="form-group">
+        <label for="f-marca">Marca *</label>
+        <input type="text" id="f-marca" placeholder="AMD">
+      </div>
+
+      <div class="form-group">
+        <label for="f-categoria">Categoría *</label>
+        <select id="f-categoria">
+          <option value="">— Elige —</option>
+          <option>CPU</option>
+          <option>GPU</option>
+          <option>RAM</option>
+          <option>Almacenamiento</option>
+          <option>Motherboard</option>
+          <option>Fuente de Poder</option>
+          <option>Enfriamiento</option>
+          <option>Gabinete</option>
+          <option>Periféricos</option>
+          <option>Otro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="f-stock">Stock *</label>
+        <input type="number" id="f-stock" min="0" placeholder="15">
+      </div>
+
+      <div class="form-group">
+        <label for="f-precio">Precio sin IVA (MXN) *</label>
+        <input type="number" id="f-precio" min="0" step="0.01" placeholder="12999">
+      </div>
+
+      <div class="form-group">
+        <label for="f-precio-iva">Precio con IVA (MXN) *</label>
+        <input type="number" id="f-precio-iva" min="0" step="0.01" placeholder="15078.84">
+      </div>
+
+      <div class="form-group full">
+        <label for="f-imagen">URL de imagen principal *</label>
+        <input type="url" id="f-imagen" placeholder="https://images.unsplash.com/…?w=500">
+        <div class="img-preview-wrap">
+          <img class="img-preview" id="f-imagen-preview" src="" alt="Vista previa" onerror="this.src='https://placehold.co/680x140/0f1623/00d2ff?text=Sin+imagen'">
+        </div>
+      </div>
+
+      <div class="form-group full">
+        <label for="f-imagenes-extra">URLs de imágenes extra (una por línea)</label>
+        <textarea id="f-imagenes-extra" rows="3" placeholder="https://…&#10;https://…"></textarea>
+      </div>
+
+      <div class="form-group full">
+        <label for="f-descripcion">Descripción *</label>
+        <textarea id="f-descripcion" rows="3" placeholder="Describe el producto…"></textarea>
+      </div>
+
+      <div class="form-group full">
+        <label for="f-especificaciones">Especificaciones (formato: Clave: Valor, una por línea)</label>
+        <textarea id="f-especificaciones" rows="4" placeholder="Núcleos: 16&#10;Hilos: 32&#10;Boost: 5.7 GHz&#10;Socket: AM5"></textarea>
+        <p class="specs-hint">Cada línea = una especificación. Formato exacto: <code>Clave: Valor</code></p>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="f-destacado" style="width:auto;margin-right:6px">
+          Producto Destacado (aparece en el hero)
+        </label>
+      </div>
+
+    </div>
+    <p class="form-error" id="form-error" style="display:none"></p>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="btn-cancel-form">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-product">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="admin-toast" role="alert" aria-live="polite"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+
+<script>
+/* ══════════════════════════════════════════════
+   FPS Factory — Admin Panel
+   Gestión de productos sin backend ni bundler.
+══════════════════════════════════════════════ */
+
+const MOCK = [
+  { id_producto:1, slug:'amd-ryzen-9-9950x', nombre:'AMD Ryzen 9 9950X', marca:'AMD', categoria:'CPU', precio:12999, precio_iva:15078.84, stock_disponible:15, imagen_url:'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=500', imagenes_extra:['https://images.unsplash.com/photo-1555617778-02518510b9d5?w=500'], destacado:1, descripcion:'El procesador más potente de la arquitectura Zen 5. 16 núcleos, 32 hilos, boost hasta 5.7 GHz.', especificaciones:{Núcleos:'16',Hilos:'32',Boost:'5.7 GHz',TDP:'170W',Socket:'AM5',PCIe:'5.0'} },
+  { id_producto:2, slug:'nvidia-rtx-5090-fe', nombre:'NVIDIA GeForce RTX 5090 FE', marca:'NVIDIA', categoria:'GPU', precio:47999, precio_iva:55678.84, stock_disponible:7, imagen_url:'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=500', imagenes_extra:[], destacado:1, descripcion:'GPU Blackwell, 32 GB GDDR7, DLSS 4 y ray tracing de cuarta generación.', especificaciones:{VRAM:'32 GB GDDR7',Bus:'512-bit',Boost:'2407 MHz',TDP:'575W',DLSS:'4',PCIe:'5.0'} },
+  { id_producto:3, slug:'corsair-dominator-titanium-ddr5', nombre:'Corsair Dominator Titanium DDR5 64 GB', marca:'Corsair', categoria:'RAM', precio:6499, precio_iva:7538.84, stock_disponible:25, imagen_url:'https://images.unsplash.com/photo-1562976540-1502c2145186?w=500', imagenes_extra:[], destacado:0, descripcion:'Kit DDR5 2×32 GB a 6400 MT/s, XMP 3.0, iCUE ARGB.', especificaciones:{Capacidad:'64 GB','Vel. XMP':'6400 MT/s',Latencia:'CL32',Voltaje:'1.40V',RGB:'iCUE ARGB'} },
+  { id_producto:4, slug:'samsung-990-pro-2tb', nombre:'Samsung 990 Pro NVMe 2 TB', marca:'Samsung', categoria:'Almacenamiento', precio:3499, precio_iva:4058.84, stock_disponible:30, imagen_url:'https://images.unsplash.com/photo-1601737487795-dab272f52420?w=500', imagenes_extra:[], destacado:0, descripcion:'SSD PCIe 4.0, lecturas hasta 7450 MB/s.', especificaciones:{Capacidad:'2 TB',Interfaz:'PCIe 4.0 ×4',Lectura:'7450 MB/s',Escritura:'6900 MB/s'} },
+  { id_producto:5, slug:'asus-rog-maximus-z890-apex', nombre:'ASUS ROG Maximus Z890 APEX', marca:'ASUS', categoria:'Motherboard', precio:18999, precio_iva:22038.84, stock_disponible:5, imagen_url:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=500', imagenes_extra:[], destacado:0, descripcion:'Motherboard ATX tope de gama LGA1851. VRM 26+1+2 fases, Wi-Fi 7.', especificaciones:{Socket:'LGA1851','Form Factor':'ATX',VRM:'26+1+2 fases',WiFi:'7 (802.11be)'} },
+  { id_producto:6, slug:'be-quiet-dark-power-13-1000w', nombre:'be quiet! Dark Power 13 1000W', marca:'be quiet!', categoria:'Fuente de Poder', precio:5999, precio_iva:6958.84, stock_disponible:12, imagen_url:'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=500', imagenes_extra:[], destacado:0, descripcion:'Fuente 80 PLUS Titanium, modular completa, garantía 10 años.', especificaciones:{Potencia:'1000W',Cert:'80 PLUS Titanium',Modular:'Sí',ATX:'3.1',Garantía:'10 años'} },
+];
+
+/* ── Estado ── */
+let products    = [];
+let editingId   = null;   // docId de Firestore (null = nuevo)
+let nextLocalId = 100;    // ID incremental cuando no hay Firestore
+
+const db        = window.fpsFire?.db ?? null;
+const tbody     = document.getElementById('products-tbody');
+const overlay   = document.getElementById('product-form-overlay');
+const seedSec   = document.getElementById('seed-section');
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', async () => {
+  _updateFirebaseStatus();
+  await _loadProducts();
+  _bindEvents();
+});
+
+/* ── Estado de Firebase ── */
+function _updateFirebaseStatus() {
+  const el = document.getElementById('firebase-status');
+  if (db) { el.textContent = '🟢 Firestore conectado'; el.style.color = 'var(--success)'; }
+  else    { el.textContent = '🟡 Modo local (sin Firebase)'; el.style.color = 'var(--warning)'; }
+}
+
+/* ── Cargar productos ── */
+async function _loadProducts() {
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Cargando…</td></tr>';
+
+  if (db) {
+    try {
+      const snap = await db.collection('productos').orderBy('id_producto').get();
+      if (snap.empty) {
+        products = [];
+        seedSec.style.display = 'block';
+      } else {
+        products = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+        seedSec.style.display = 'none';
+      }
+    } catch (e) {
+      _toast('Error al leer Firestore: ' + e.message, 'error');
+      products = [...MOCK];
+    }
+  } else {
+    products = [...MOCK];
+  }
+
+  _renderTable();
+}
+
+/* ── Renderizar tabla ── */
+function _renderTable() {
+  if (products.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Sin productos. Agrega uno o carga los de ejemplo.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = products.map(p => `
+    <tr data-id="${p._docId || p.id_producto}">
+      <td><img class="td-img" src="${p.imagen_url}" alt="${p.nombre}" onerror="this.src='https://placehold.co/52/0f1623/00d2ff?text=FPS'"></td>
+      <td class="td-name">${p.nombre}<small>${p.marca}</small></td>
+      <td>${p.categoria}</td>
+      <td>$${Number(p.precio).toLocaleString('es-MX')}</td>
+      <td>${p.stock_disponible}</td>
+      <td><span class="badge ${p.destacado ? 'badge-yes' : 'badge-no'}">${p.destacado ? 'Sí' : 'No'}</span></td>
+      <td>
+        <div class="td-actions">
+          <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${p._docId || p.id_producto}">Editar</button>
+          <button class="btn btn-danger btn-sm" data-action="delete" data-id="${p._docId || p.id_producto}">Eliminar</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ── Eventos globales ── */
+function _bindEvents() {
+
+  /* Botón nuevo producto */
+  document.getElementById('btn-new-product').addEventListener('click', () => _openForm(null));
+
+  /* Cancelar formulario */
+  document.getElementById('btn-cancel-form').addEventListener('click', _closeForm);
+
+  /* Guardar */
+  document.getElementById('btn-save-product').addEventListener('click', _saveProduct);
+
+  /* Preview de imagen al escribir URL */
+  document.getElementById('f-imagen').addEventListener('input', e => {
+    document.getElementById('f-imagen-preview').src = e.target.value;
+  });
+
+  /* Auto-calcular precio con IVA */
+  document.getElementById('f-precio').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) document.getElementById('f-precio-iva').value = (v * 1.16).toFixed(2);
+  });
+
+  /* Cerrar con click en overlay */
+  overlay.addEventListener('click', e => { if (e.target === overlay) _closeForm(); });
+
+  /* Cerrar con Escape */
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeForm(); });
+
+  /* Delegación en tabla (edit / delete) */
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'edit')   _openForm(id);
+    if (btn.dataset.action === 'delete') _deleteProduct(id);
+  });
+
+  /* Seed */
+  document.getElementById('btn-seed').addEventListener('click', _seedFirestore);
+}
+
+/* ── Abrir formulario ── */
+function _openForm(id) {
+  editingId = id;
+  _clearFormErrors();
+
+  if (id) {
+    /* Modo edición */
+    const p = products.find(x => (x._docId || String(x.id_producto)) === String(id));
+    if (!p) return;
+    document.getElementById('form-title').textContent      = 'Editar Producto';
+    document.getElementById('f-nombre').value              = p.nombre;
+    document.getElementById('f-marca').value               = p.marca;
+    document.getElementById('f-categoria').value           = p.categoria;
+    document.getElementById('f-stock').value               = p.stock_disponible;
+    document.getElementById('f-precio').value              = p.precio;
+    document.getElementById('f-precio-iva').value          = p.precio_iva;
+    document.getElementById('f-imagen').value              = p.imagen_url;
+    document.getElementById('f-imagen-preview').src        = p.imagen_url;
+    document.getElementById('f-imagenes-extra').value      = (p.imagenes_extra || []).join('\n');
+    document.getElementById('f-descripcion').value         = p.descripcion;
+    document.getElementById('f-especificaciones').value    = _specsToText(p.especificaciones || {});
+    document.getElementById('f-destacado').checked         = Boolean(p.destacado);
+  } else {
+    /* Modo nuevo */
+    document.getElementById('form-title').textContent = 'Nuevo Producto';
+    document.getElementById('product-form-overlay').querySelectorAll('input,select,textarea').forEach(el => {
+      if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+    document.getElementById('f-imagen-preview').src = '';
+  }
+
+  overlay.classList.add('open');
+  document.getElementById('f-nombre').focus();
+}
+
+function _closeForm() { overlay.classList.remove('open'); }
+
+/* ── Guardar producto ── */
+async function _saveProduct() {
+  const nombre       = document.getElementById('f-nombre').value.trim();
+  const marca        = document.getElementById('f-marca').value.trim();
+  const categoria    = document.getElementById('f-categoria').value;
+  const stock        = parseInt(document.getElementById('f-stock').value, 10);
+  const precio       = parseFloat(document.getElementById('f-precio').value);
+  const precio_iva   = parseFloat(document.getElementById('f-precio-iva').value);
+  const imagen_url   = document.getElementById('f-imagen').value.trim();
+  const descripcion  = document.getElementById('f-descripcion').value.trim();
+  const destacado    = document.getElementById('f-destacado').checked ? 1 : 0;
+
+  const extraRaw     = document.getElementById('f-imagenes-extra').value.trim();
+  const imagenes_extra = extraRaw ? extraRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+  const specsRaw     = document.getElementById('f-especificaciones').value.trim();
+  const especificaciones = _textToSpecs(specsRaw);
+
+  /* Validación */
+  if (!nombre || !marca || !categoria || isNaN(stock) || isNaN(precio) || !imagen_url || !descripcion) {
+    _showFormError('Completa todos los campos obligatorios (*).');
+    return;
+  }
+
+  const slug = nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  const btn = document.getElementById('btn-save-product');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  try {
+    if (db) {
+      /* ── Firestore ── */
+      if (editingId) {
+        const p = products.find(x => (x._docId || String(x.id_producto)) === String(editingId));
+        await db.collection('productos').doc(editingId).update({
+          nombre, marca, categoria, slug, stock_disponible: stock,
+          precio, precio_iva, imagen_url, imagenes_extra,
+          descripcion, especificaciones, destacado,
+        });
+        /* Actualizar local */
+        const idx = products.findIndex(x => x._docId === editingId);
+        if (idx !== -1) products[idx] = { ...products[idx], nombre, marca, categoria, slug, stock_disponible: stock, precio, precio_iva, imagen_url, imagenes_extra, descripcion, especificaciones, destacado };
+        _toast('Producto actualizado ✓', 'success');
+      } else {
+        /* Nuevo: obtener siguiente id_producto */
+        const snap = await db.collection('productos').orderBy('id_producto', 'desc').limit(1).get();
+        const lastId = snap.empty ? 0 : snap.docs[0].data().id_producto;
+        const id_producto = lastId + 1;
+
+        const ref = await db.collection('productos').add({
+          id_producto, nombre, marca, categoria, slug, stock_disponible: stock,
+          precio, precio_iva, imagen_url, imagenes_extra,
+          descripcion, especificaciones, destacado,
+        });
+        products.push({ _docId: ref.id, id_producto, nombre, marca, categoria, slug, stock_disponible: stock, precio, precio_iva, imagen_url, imagenes_extra, descripcion, especificaciones, destacado });
+        _toast('Producto creado ✓', 'success');
+        seedSec.style.display = 'none';
+      }
+    } else {
+      /* ── Modo local (sin Firebase) ── */
+      if (editingId) {
+        const idx = products.findIndex(x => String(x.id_producto) === String(editingId));
+        if (idx !== -1) products[idx] = { ...products[idx], nombre, marca, categoria, slug, stock_disponible: stock, precio, precio_iva, imagen_url, imagenes_extra, descripcion, especificaciones, destacado };
+        _toast('Editado localmente (sin Firebase — los cambios no persisten)', 'success');
+      } else {
+        const id_producto = nextLocalId++;
+        products.push({ id_producto, nombre, marca, categoria, slug, stock_disponible: stock, precio, precio_iva, imagen_url, imagenes_extra, descripcion, especificaciones, destacado });
+        _toast('Creado localmente (sin Firebase — los cambios no persisten)', 'success');
+      }
+    }
+
+    _renderTable();
+    _closeForm();
+  } catch (e) {
+    _showFormError('Error al guardar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar producto';
+  }
+}
+
+/* ── Eliminar producto ── */
+async function _deleteProduct(id) {
+  const p = products.find(x => (x._docId || String(x.id_producto)) === String(id));
+  if (!p) return;
+
+  /* Confirmación inline sin window.confirm */
+  const confirmed = await _inlineConfirm(`¿Eliminar "${p.nombre}"?`);
+  if (!confirmed) return;
+
+  try {
+    if (db) await db.collection('productos').doc(id).delete();
+    products = products.filter(x => (x._docId || String(x.id_producto)) !== String(id));
+    _renderTable();
+    _toast('Producto eliminado.', 'success');
+    if (products.length === 0) seedSec.style.display = 'block';
+  } catch (e) {
+    _toast('Error al eliminar: ' + e.message, 'error');
+  }
+}
+
+/* ── Cargar mock a Firestore ── */
+async function _seedFirestore() {
+  if (!db) { _toast('Conecta Firebase primero.', 'error'); return; }
+
+  const btn = document.getElementById('btn-seed');
+  btn.disabled = true; btn.textContent = 'Cargando…';
+
+  try {
+    const batch = db.batch();
+    MOCK.forEach(p => {
+      const ref = db.collection('productos').doc();
+      batch.set(ref, p);
+    });
+    await batch.commit();
+    _toast('¡6 productos cargados a Firestore! ✓', 'success');
+    seedSec.style.display = 'none';
+    await _loadProducts();
+  } catch (e) {
+    _toast('Error al hacer seed: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = 'Cargar productos de ejemplo a Firestore';
+  }
+}
+
+/* ── Confirmación inline (reemplaza window.confirm) ── */
+function _inlineConfirm(msg) {
+  return new Promise(resolve => {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
+    box.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;max-width:340px;text-align:center">
+        <p style="margin-bottom:16px;font-size:.95rem">${msg}</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button id="_conf-ok"  style="padding:8px 20px;background:var(--danger);color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600">Eliminar</button>
+          <button id="_conf-no"  style="padding:8px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:7px;cursor:pointer">Cancelar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(box);
+    box.querySelector('#_conf-ok').onclick = () => { box.remove(); resolve(true);  };
+    box.querySelector('#_conf-no').onclick = () => { box.remove(); resolve(false); };
+  });
+}
+
+/* ── Helpers de specs ── */
+function _specsToText(obj) {
+  return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n');
+}
+function _textToSpecs(text) {
+  const obj = {};
+  text.split('\n').forEach(line => {
+    const idx = line.indexOf(':');
+    if (idx === -1) return;
+    const key = line.slice(0, idx).trim();
+    const val = line.slice(idx + 1).trim();
+    if (key && val) obj[key] = val;
+  });
+  return obj;
+}
+
+/* ── Toast ── */
+function _toast(msg, type = 'success') {
+  const el = document.getElementById('admin-toast');
+  el.textContent = msg;
+  el.className   = `show toast-${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3500);
+}
+
+/* ── Errores de formulario ── */
+function _showFormError(msg) {
+  const el = document.getElementById('form-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function _clearFormErrors() {
+  const el = document.getElementById('form-error');
+  el.textContent = '';
+  el.style.display = 'none';
+}
+</script>
+</body>
+</html>
